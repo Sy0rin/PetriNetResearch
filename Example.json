@@ -1,0 +1,23 @@
+//	This is Petri Net Description:
+{
+	"states": {
+		"S1": {
+			"T":[],
+			"Tokens":[]
+		}
+	},
+	"transitions":{
+		"T1":{
+			"Prev":[],
+			"Next":[],
+			"Weight":[]
+		}
+
+	}
+}
+
+//	Transfer to CTLM Syntax
+
+//	Transfer Petri-Net to SMART to DTMC
+//	Full transference (back and forth)
+//  Data stored as JSON

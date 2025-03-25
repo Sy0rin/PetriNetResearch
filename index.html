@@ -1,0 +1,366 @@
+<!--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syntax Translator</title>
+</head>
+<body>
+
+    <textarea id="inputText" rows="10" cols="50" placeholder="Enter your code here..."></textarea>
+    <button onclick="processInput()">Translate</button>
+
+    <script>
+        function processInput() {
+            const inputText = document.getElementById("inputText").value;
+            const lines = inputText.split(/\r?\n/); // Splitting by new lines
+
+            lines.forEach((line, index) => {
+                parseLine(line, index + 1);
+            });
+        }
+
+        function parseLine(line, lineNumber) {
+            console.log(`Line ${lineNumber}: ${line}`);
+        }
+    </script>
+
+</body>
+</html>
+
+
+-->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DTMC to Cytoscape Graph</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.21.0/cytoscape.min.js"></script>
+    <style>
+        #cy {
+            width: 800px;
+            height: 600px;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>DTMC Graph Visualization</h2>
+    <textarea id="inputText" rows="10" cols="50" placeholder="Enter PRISM DTMC Code..."></textarea>
+    <button onclick="processInput()">Generate Graph</button>
+
+    <div id="cy"></div>
+
+    <script>
+        let graph={};
+        
+        function processInput() {
+            const inputText = document.getElementById("inputText").value;
+            const lines = inputText.split(/\r?\n/); // Splitting by new lines
+
+            let transitions = [];
+
+            lines.forEach((line) => {
+                parseLine(line, transitions);
+            });
+
+            const cytoscapeJson = generateCytoscapeJson(transitions);
+            renderCytoscape(cytoscapeJson);
+        }
+
+        function parseLine(line, transitions) {
+            // Match transition lines like: [] s=0 -> 0.5 : (s'=1) + 0.5 : (s'=2);
+            const regex = /\[\] s=(\d+) -> ([\d\.]+) : \(s'=(\d+)\)(?: \+ ([\d\.]+) : \(s'=(\d+)\))?/;
+            const match = line.match(regex);
+
+            if (match) {
+                let source = match[1]; // Source state
+                let prob1 = parseFloat(match[2]); // First probability
+                let target1 = match[3]; // First target state
+                
+                // Add first transition
+                transitions.push({ source, target: target1, probability: prob1 });
+
+                // Check for a second transition (optional)
+                if (match[4] && match[5]) {
+                    let prob2 = parseFloat(match[4]);
+                    let target2 = match[5];
+                    transitions.push({ source, target: target2, probability: prob2 });
+                }
+            }
+
+            // Handle absorbing states like [] s=7 -> (s'=7);
+            const absorbRegex = /\[\] s=(\d+) -> \(s'=(\d+)\);/;
+            const absorbMatch = line.match(absorbRegex);
+            if (absorbMatch) {
+                let state = absorbMatch[1];
+                let target = absorbMatch[2];
+                if (state === target) {
+                    transitions.push({ source: state, target: target, probability: 1.0 });
+                }
+            }
+        }
+
+        function generateCytoscapeJson(transitions) {
+            let nodes = new Set();
+            let edges = [];
+
+            transitions.forEach(({ source, target, probability }) => {
+                nodes.add(source);
+                nodes.add(target);
+                edges.push({
+                    "data": {
+                        "id": `e${source}-${target}`,
+                        "source": source,
+                        "target": target,
+                        "label": probability.toString()
+                    }
+                });
+            });
+
+            // Create node objects
+            let nodesJson = [...nodes].map(node => ({
+                "data": { "id": node, "label": `State ${node}` }
+            }));
+
+            return { nodes: nodesJson, edges };
+        }
+
+        function renderCytoscape(graphData) {
+            document.getElementById("cy").innerHTML = ""; // Clear previous graph
+
+            cytoscape({
+                container: document.getElementById('cy'),
+                elements: graphData.nodes.concat(graphData.edges),
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'label': 'data(label)',
+                            'background-color': '#0074D9',
+                            'color': '#FFF',
+                            'text-valign': 'center',
+                            'width': '50px',
+                            'height': '50px'
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'label': 'data(label)',
+                            'width': 3,
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier'
+                        }
+                    }
+                ],
+                layout: { name: 'cose' }
+            });
+        }
+    </script>
+
+</body>
+</html>
+
+
+<!--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DTMC to Cytoscape Graph</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.21.0/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/layout-base/layout-base.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre/cytoscape-dagre.js"></script>
+    <script src="https://unpkg.com/cytoscape-cola/cytoscape-cola.js"></script>
+    <style>
+        #cy {
+            width: 100%;
+            height: 600px;
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>DTMC Graph Visualization</h2>
+    <textarea id="inputText" rows="10" cols="50" placeholder="Enter PRISM DTMC Code..."></textarea>
+    <button onclick="processInput()">Generate Graph</button>
+
+    <div id="cy"></div>
+
+    <script>
+        function processInput() {
+            const inputText = document.getElementById("inputText").value;
+            const lines = inputText.split(/\r?\n/);
+
+            let transitions = [];
+
+            lines.forEach((line) => {
+                parseLine(line, transitions);
+            });
+
+            const cytoscapeJson = generateCytoscapeJson(transitions);
+            renderCytoscape(cytoscapeJson);
+        }
+
+        function parseLine(line, transitions) {
+            const regex = /\[\] s=(\d+) -> ([\d\.]+) : \(s'=(\d+)\)(?: \+ ([\d\.]+) : \(s'=(\d+)\))?/;
+            const match = line.match(regex);
+
+            if (match) {
+                let source = match[1]; 
+                let prob1 = parseFloat(match[2]); 
+                let target1 = match[3]; 
+                
+                transitions.push({ source, target: target1, probability: prob1 });
+
+                if (match[4] && match[5]) {
+                    let prob2 = parseFloat(match[4]);
+                    let target2 = match[5];
+                    transitions.push({ source, target: target2, probability: prob2 });
+                }
+            }
+
+            const absorbRegex = /\[\] s=(\d+) -> \(s'=(\d+)\);/;
+            const absorbMatch = line.match(absorbRegex);
+            if (absorbMatch) {
+                let state = absorbMatch[1];
+                let target = absorbMatch[2];
+                if (state === target) {
+                    transitions.push({ source: state, target: target, probability: 1.0 });
+                }
+            }
+        }
+
+        function generateCytoscapeJson(transitions) {
+            let nodes = new Set();
+            let edges = [];
+
+            transitions.forEach(({ source, target, probability }) => {
+                nodes.add(source);
+                nodes.add(target);
+                edges.push({
+                    "data": {
+                        "id": `e${source}-${target}`,
+                        "source": source,
+                        "target": target,
+                        "label": probability.toString()
+                    }
+                });
+            });
+
+            let nodesJson = [...nodes].map(node => ({
+                "data": { "id": node, "label": `State ${node}` }
+            }));
+
+            return { nodes: nodesJson, edges };
+        }
+
+        function renderCytoscape(graphData) {
+            document.getElementById("cy").innerHTML = ""; 
+
+            let cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: graphData.nodes.concat(graphData.edges),
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'label': 'data(label)',
+                            'background-color': '#0074D9',
+                            'color': '#FFF',
+                            'text-valign': 'center',
+                            'width': '50px',
+                            'height': '50px',
+                            'border-width': '2px',
+                            'border-color': '#000'
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'label': 'data(label)',
+                            'width': 2,
+                            'curve-style': 'bezier',  // Ensures edges are curved properly
+                            'target-arrow-shape': 'triangle',
+                            'line-color': '#888',
+                            'target-arrow-color': '#888',
+                            'text-background-color': '#FFF',
+                            'text-background-opacity': 1,
+                            'font-size': '14px',
+                            'text-margin-y': '-10px' // Adjusts label positioning
+                        }
+                    }
+                ],
+                layout: getPreferredLayout()
+            });
+        }
+
+        function getPreferredLayout() {
+            // Try Dagre layout first
+            if (typeof cytoscapeDagre !== "undefined") {
+                return { 
+                    name: 'dagre',
+                    rankDir: 'TB', // Top to Bottom layout
+                    spacingFactor: 1.5
+                };
+            }
+
+            // Try Cola layout as fallback
+            if (typeof cytoscapeCola !== "undefined") {
+                return { 
+                    name: 'cola',
+                    avoidOverlap: true,
+                    randomize: true,
+                    maxSimulationTime: 3000
+                };
+            }
+
+            // Fallback to Cose if external layouts fail
+            return { 
+                name: 'cose',
+                animate: false,
+                fit: true,
+                padding: 30,
+                nodeRepulsion: 10000
+            };
+        }
+    </script>
+
+</body>
+</html>
+
+/-->
+
