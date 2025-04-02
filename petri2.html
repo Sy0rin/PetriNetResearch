@@ -23,13 +23,13 @@
     <button onclick="fireTransitions()" class="px-4 py-2 bg-yellow-500 text-white rounded mt-2">Play</button>
 
     <button type="button" class="px-4 py-2 bg-orange-500 text-white rounded mt-2" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                  Character Sheet</button>
+                  Transition Map</button>
 
     <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="exampleModalLabel">Character Sheet</h5>
+            <h5 class="modal-title" id="exampleModalLabel">Transition Map</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -37,7 +37,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" onclick="addPerson()" class="btn btn-primary">Add Person</button>
+            <button type="button" onclick="placeholder()" class="btn btn-primary">Generate Total Map</button>
           </div>
         </div>
       </div>
@@ -106,15 +106,15 @@
             }
         }
 
-        function fireTransitions() {
+        function fireTransitions(me = graph) {
             let transitionsToFire = [];
 
  
-            Object.keys(graph.transitions).forEach(transition => {
-                let transitionData = graph.transitions[transition];
+            Object.keys(me.transitions).forEach(transition => {
+                let transitionData = me.transitions[transition];
 
     
-                let canFire = transitionData.Prev.every(place => graph.states[place].Token > 0);
+                let canFire = transitionData.Prev.every(place => me.states[place].Token > 0);
 
                 if (canFire) {
                     transitionsToFire.push(transition);
@@ -124,16 +124,16 @@
  
             if (transitionsToFire.length > 0) {
                 transitionsToFire.forEach(transition => {
-                    let transitionData = graph.transitions[transition];
+                    let transitionData = me.transitions[transition];
 
                     
                     transitionData.Prev.forEach(place => {
-                        graph.states[place].Token--;
+                        me.states[place].Token--;
                     });
 
                     transitionData.Next.forEach(place => {
-                        if (graph.states[place]) { 
-                            graph.states[place].Token++;
+                        if (me.states[place]) { 
+                            me.states[place].Token++;
                         }
                     });
 
@@ -141,8 +141,10 @@
                 });
 
                 updateCytoscape();
+                return 1;
             } else {
                 alert("No transitions can fire at this time.");
+                return 0;
             }
         }
 
@@ -304,43 +306,34 @@
         });
         
         function placeholder() {
-    const clonedGraph = JSON.parse(JSON.stringify(graph));
+            let clonedGraph = JSON.parse(JSON.stringify(graph));
+            let flag = 1;
 
-    console.clear(); // Clear console to avoid clutter
-    console.log("=== Live Petri Net State ===");
+            let characterSheet = document.querySelector('#exampleModal ul');
+            while(flag){
 
-    let characterSheet = document.querySelector('#exampleModal ul');
-    characterSheet.innerHTML = ''; // Clear current entries
+                Object.keys(clonedGraph.states).forEach(place => {
+                    const tokenCount = clonedGraph.states[place].Token;
 
-    // Show all places and their tokens
-    Object.keys(clonedGraph.states).forEach(place => {
-        const tokenCount = clonedGraph.states[place].Token;
-        console.log(`Place ${place}: Tokens = ${tokenCount}`);
+                    let li = document.createElement('li');
+                    li.textContent = `Place ${place} → Tokens: ${tokenCount}`;
+                    characterSheet.appendChild(li);
+                });
+                Object.keys(clonedGraph.transitions).forEach(transition => {
+                    const data = clonedGraph.transitions[transition];
+                    const inputs = data.Prev;
+                    const outputs = data.Next;
 
-        let li = document.createElement('li');
-        li.textContent = `Place ${place} → Tokens: ${tokenCount}`;
-        characterSheet.appendChild(li);
-    });
+                    let canFire = inputs.every(place => clonedGraph.states[place].Token >= 1);
 
-    // Show all transitions, their inputs, outputs, and if they can fire
-    Object.keys(clonedGraph.transitions).forEach(transition => {
-        const data = clonedGraph.transitions[transition];
-        const inputs = data.Prev;
-        const outputs = data.Next;
-
-        let canFire = inputs.every(place => clonedGraph.states[place].Token >= 1);
-
-        console.log(`Transition ${transition}:`);
-        console.log(`  Inputs: ${inputs.join(", ")}`);
-        console.log(`  Outputs: ${outputs.join(", ")}`);
-        console.log(`  Can Fire: ${canFire ? "YES" : "NO"}`);
-
-        let li = document.createElement('li');
-        li.textContent = `Transition ${transition} → Inputs: ${inputs.join(", ")} | Outputs: ${outputs.join(", ")} | Can Fire: ${canFire ? "YES" : "NO"}`;
-        characterSheet.appendChild(li);
-    });
-
-    console.log("=== End of State ===");
+                    let li = document.createElement('li');
+                    li.textContent = `Transition ${transition} → Inputs: ${inputs.join(", ")} | Outputs: ${outputs.join(", ")} | Can Fire: ${canFire ? "YES" : "NO"}`;
+                    characterSheet.appendChild(li);
+                });
+                if (!fireTransitions(clonedGraph)){
+                    flag = 0;
+                }
+            }
 }
 
 
