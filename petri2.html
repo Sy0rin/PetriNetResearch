@@ -108,7 +108,6 @@
 
         function fireTransitions() {
             let transitionsToFire = [];
-
  
             Object.keys(graph.transitions).forEach(transition => {
                 let transitionData = graph.transitions[transition];
@@ -302,6 +301,10 @@
             };
             reader.readAsText(file);
         });
+
+        function placeholder(){
+            const clonedGraph = JSON.parse(JSON.stringify(graph));
+        }
 
     </script>
 
