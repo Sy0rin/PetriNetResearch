@@ -23,13 +23,13 @@
     <button onclick="fireTransitions()" class="px-4 py-2 bg-yellow-500 text-white rounded mt-2">Play</button>
 
     <button type="button" class="px-4 py-2 bg-orange-500 text-white rounded mt-2" data-bs-toggle="modal" data-bs-target="#exampleModal">
-                  Character Sheet</button>
+                  Transition Map</button>
 
     <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="exampleModalLabel">Character Sheet</h5>
+            <h5 class="modal-title" id="exampleModalLabel">Transition Map</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -37,13 +37,12 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" onclick="addPerson()" class="btn btn-primary">Add Person</button>
+            <button type="button" onclick="placeholder()" class="btn btn-primary">Generate Total Map</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Cytoscape Graph Container -->
     <div id="cy" class="border border-gray-300 w-full h-[600px] mt-4"></div>
 
     <script>
@@ -106,33 +105,55 @@
             }
         }
 
-        function fireTransitions() {
+        function fireTransitions(me = graph) {
             let transitionsToFire = [];
- 
-            Object.keys(graph.transitions).forEach(transition => {
-                let transitionData = graph.transitions[transition];
 
-    
-                let canFire = transitionData.Prev.every(place => graph.states[place].Token > 0);
+            Object.keys(me.transitions).forEach(transition => {
+                let transitionData = me.transitions[transition];
+
+                let canFire = transitionData.Prev.every(place => me.states[place].Token > 0);
 
                 if (canFire) {
                     transitionsToFire.push(transition);
                 }
             });
 
- 
-            if (transitionsToFire.length > 0) {
-                transitionsToFire.forEach(transition => {
-                    let transitionData = graph.transitions[transition];
+            let resolvedTransitions = [];
+            let usedPlaces = new Set();
+            transitionsToFire.sort(() => Math.random() - 0.5); // shuffle
+            while (transitionsToFire.length > 0) {
+                let t = transitionsToFire.shift();
+                let tData = me.transitions[t];
 
-                    
+                let conflict = false;
+
+                for (let place of tData.Prev) {
+                    if (usedPlaces.has(place)) {
+                        conflict = true;
+                        break;
+                    }
+                }
+
+                if (!conflict) {
+                    tData.Prev.forEach(place => usedPlaces.add(place));
+                    resolvedTransitions.push(t);
+                } else {
+                    // Conflict Handling Purposes
+                    continue;
+                }
+            }
+
+            if (resolvedTransitions.length > 0) {
+                resolvedTransitions.forEach(transition => {
+                    let transitionData = me.transitions[transition];
+
                     transitionData.Prev.forEach(place => {
-                        graph.states[place].Token--;
+                        me.states[place].Token--;
                     });
 
                     transitionData.Next.forEach(place => {
-                        if (graph.states[place]) { 
-                            graph.states[place].Token++;
+                        if (me.states[place]) {
+                            me.states[place].Token++;
                         }
                     });
 
@@ -140,10 +161,13 @@
                 });
 
                 updateCytoscape();
+                return 1;
             } else {
                 alert("No transitions can fire at this time.");
+                return 0;
             }
         }
+
 
         function updateCytoscape() {
             let elements = [];
@@ -301,10 +325,38 @@
             };
             reader.readAsText(file);
         });
+        
+        function placeholder() {
+            let clonedGraph = JSON.parse(JSON.stringify(graph));
+            let flag = 1;
 
-        function placeholder(){
-            const clonedGraph = JSON.parse(JSON.stringify(graph));
-        }
+            let characterSheet = document.querySelector('#exampleModal ul');
+            while(flag){
+
+                Object.keys(clonedGraph.states).forEach(place => {
+                    const tokenCount = clonedGraph.states[place].Token;
+
+                    let li = document.createElement('li');
+                    li.textContent = `Place ${place} → Tokens: ${tokenCount}`;
+                    characterSheet.appendChild(li);
+                });
+                Object.keys(clonedGraph.transitions).forEach(transition => {
+                    const data = clonedGraph.transitions[transition];
+                    const inputs = data.Prev;
+                    const outputs = data.Next;
+
+                    let canFire = inputs.every(place => clonedGraph.states[place].Token >= 1);
+
+                    let li = document.createElement('li');
+                    li.textContent = `Transition ${transition} → Inputs: ${inputs.join(", ")} | Outputs: ${outputs.join(", ")} | Can Fire: ${canFire ? "YES" : "NO"}`;
+                    characterSheet.appendChild(li);
+                });
+                if (!fireTransitions(clonedGraph)){
+                    flag = 0;
+                }
+            }
+}
+
 
     </script>
 
