@@ -108,11 +108,9 @@
         function fireTransitions(me = graph) {
             let transitionsToFire = [];
 
- 
             Object.keys(me.transitions).forEach(transition => {
                 let transitionData = me.transitions[transition];
 
-    
                 let canFire = transitionData.Prev.every(place => me.states[place].Token > 0);
 
                 if (canFire) {
@@ -120,18 +118,41 @@
                 }
             });
 
- 
-            if (transitionsToFire.length > 0) {
-                transitionsToFire.forEach(transition => {
+            let resolvedTransitions = [];
+            let usedPlaces = new Set();
+            transitionsToFire.sort(() => Math.random() - 0.5); // shuffle
+            while (transitionsToFire.length > 0) {
+                let t = transitionsToFire.shift();
+                let tData = me.transitions[t];
+
+                let conflict = false;
+
+                for (let place of tData.Prev) {
+                    if (usedPlaces.has(place)) {
+                        conflict = true;
+                        break;
+                    }
+                }
+
+                if (!conflict) {
+                    tData.Prev.forEach(place => usedPlaces.add(place));
+                    resolvedTransitions.push(t);
+                } else {
+                    // Conflict Handling Purposes
+                    continue;
+                }
+            }
+
+            if (resolvedTransitions.length > 0) {
+                resolvedTransitions.forEach(transition => {
                     let transitionData = me.transitions[transition];
 
-                    
                     transitionData.Prev.forEach(place => {
                         me.states[place].Token--;
                     });
 
                     transitionData.Next.forEach(place => {
-                        if (me.states[place]) { 
+                        if (me.states[place]) {
                             me.states[place].Token++;
                         }
                     });
@@ -146,6 +167,7 @@
                 return 0;
             }
         }
+
 
         function updateCytoscape() {
             let elements = [];
