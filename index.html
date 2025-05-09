@@ -25,8 +25,6 @@
     <button type="button" class="px-4 py-2 bg-orange-500 text-white rounded mt-2" data-bs-toggle="modal" data-bs-target="#exampleModal">
                   Transition Map</button>
 
-<button onclick="generateReachabilityGraph()" class="px-4 py-2 bg-purple-500 text-white rounded mt-2">Reachability Graph</button>
-
     <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -39,7 +37,6 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" onclick="placeholder()" class="btn btn-primary">Generate Total Map</button>
           </div>
         </div>
       </div>
@@ -66,12 +63,11 @@
 
             console.log(graph);
             updateCytoscape();
+            placeholder();
+            generateReachabilityGraph();
         }
 
         $('#reachability').hide();
-        function addPerson(){
-            console.log("hello");
-        }
 
         function parseLine(line, lineNumber) {
             let token = line.split(" ");
@@ -83,7 +79,7 @@
                     break;
                 case 'TRANSITION':
                     for (let i = 1; i < token.length; i++) {
-                        graph['transitions'][token[i]] = { Next: [], Prev: [], Weight: [] };
+                        graph['transitions'][token[i]] = { Next: [], Prev: [], Weight: [], Inhibitors: [] };
                     }
                     break;
                 case 'ARC':
@@ -107,6 +103,14 @@
                         }
                     }
                     break;
+                case 'INHIBITOR':
+                    let inhibitorPlace = token[1];
+                    let targetTransition = token[2];
+                    if (graph['transitions'][targetTransition]) {
+                        graph['transitions'][targetTransition]["Inhibitors"].push(inhibitorPlace);
+                    }
+                    break;
+
                 default:
             }
         }
@@ -117,7 +121,8 @@
             Object.keys(me.transitions).forEach(transition => {
                 let transitionData = me.transitions[transition];
 
-                let canFire = transitionData.Prev.every(place => me.states[place].Token > 0);
+                let canFire = transitionData.Prev.every(place => me.states[place].Token > 0) &&
+                    (!transitionData.Inhibitors || transitionData.Inhibitors.every(place => me.states[place].Token === 0));
 
                 if (canFire) {
                     transitionsToFire.push(transition);
@@ -211,6 +216,12 @@
                         data: { source: transition, target: target, label: "arc" }
                     });
                 });
+                graph.transitions[transition].Inhibitors?.forEach(target => {
+                    elements.push({
+                        data: { source: target, target: transition, label: "inhibitor" },
+                        classes: 'inhibitor'
+                    });
+                });
             });
 
             if (cy) {
@@ -250,7 +261,17 @@
                             'target-arrow-color': '#aaa',
                             'curve-style': 'bezier'
                         } 
+                    },
+                    { 
+                        selector: 'edge[label="inhibitor"]', 
+                        style: { 
+                            'line-style': 'dashed',
+                            'line-color': 'red',
+                            'target-arrow-shape': 'tee',
+                            'target-arrow-color': 'black'
+                        } 
                     }
+
                 ],
                 layout: { name: 'preset' }
             });
@@ -275,6 +296,12 @@
             transitions.forEach(transition => {
                 jsonData.transitions[transition].Next.forEach(target => {
                     description += `ARC ${transition} ${target}\n`;
+                });
+            });
+
+            transitions.forEach(transition => {
+                (jsonData.transitions[transition].Inhibitors || []).forEach(place => {
+                    description += `INHIBITOR ${place} ${transition}\n`;
                 });
             });
 
@@ -333,48 +360,13 @@
         });
         
         function placeholder() {
-            let clonedGraph = JSON.parse(JSON.stringify(graph));
-            let flag = 1;
-
-            const characterSheet = document.querySelector('#exampleModal ul');
-            characterSheet.innerHTML = ''; // Clear existing <ul>
-
-            const markings = []; // Store each marking snapshot
-            let step = 0;
-
-            while (flag) {
-                const marking = { step: step++ };
-                Object.keys(clonedGraph.states).forEach(place => {
-                    const tokenCount = clonedGraph.states[place].Token;
-                    marking[place] = tokenCount;
-
-                    let li = document.createElement('li');
-                    li.textContent = `Place ${place} → Tokens: ${tokenCount}`;
-                    characterSheet.appendChild(li);
-                });
-
-                Object.keys(clonedGraph.transitions).forEach(transition => {
-                    const data = clonedGraph.transitions[transition];
-                    const inputs = data.Prev;
-                    const outputs = data.Next;
-
-                    let canFire = inputs.every(place => clonedGraph.states[place].Token >= 1);
-
-                    let li = document.createElement('li');
-                    li.textContent = `Transition ${transition} → Inputs: ${inputs.join(", ")} | Outputs: ${outputs.join(", ")} | Can Fire: ${canFire ? "YES" : "NO"}`;
-                    characterSheet.appendChild(li);
-                });
-
-                markings.push(marking);
-
-                if (!fireTransitions(clonedGraph)) {
-                    flag = 0;
-                }
-            }
-
-            // Create the marking table using the collected snapshots
+            const visited = new Set();
+            const markings = [];
+            const clonedGraph = JSON.parse(JSON.stringify(graph));
+            exploreMarkings(clonedGraph, visited, markings);
             createMarkingTable(markings);
         }
+
 
         let cy2; // Separate Cytoscape instance for Reachability Graph
 
@@ -389,7 +381,7 @@
             let transitionData = me.transitions[transition];
 
             let canFire = transitionData.Prev.every(place => me.states[place].Token > 0) &&
-                          (transitionData.Inhibitors ? transitionData.Inhibitors.every(place => me.states[place].Token === 0) : true);
+                          (!transitionData.Inhibitors || transitionData.Inhibitors.every(place => me.states[place].Token === 0));
 
             if (!canFire) return false;
 
@@ -444,6 +436,8 @@
         }
 
         function drawReachabilityGraph(reachGraph) {
+            $('#reachability').show();
+
             if (cy2) {
                 cy2.destroy();
             }
@@ -487,13 +481,11 @@
             let clonedGraph = JSON.parse(JSON.stringify(graph));
             let reachGraph = buildReachabilityGraphFull(clonedGraph);
             drawReachabilityGraph(reachGraph);
-            $('#reachability').show();
         }
 
         function createMarkingTable(markings) {
             const container = document.querySelector('#exampleModal ul');
 
-            // Remove old table if any
             const oldTable = container.querySelector('table');
             if (oldTable) oldTable.remove();
 
@@ -509,8 +501,11 @@
             stepHeader.textContent = 'Step';
             headerRow.appendChild(stepHeader);
 
-            // Get all unique place names from the first marking
-            const placeNames = Object.keys(markings[0]).filter(key => key !== 'step');
+            const pathHeader = document.createElement('th');
+            pathHeader.textContent = 'Firing Path';
+            headerRow.appendChild(pathHeader);
+
+            const placeNames = Object.keys(markings[0]).filter(key => key !== 'step' && key !== 'path');
 
             placeNames.forEach(place => {
                 const th = document.createElement('th');
@@ -530,6 +525,10 @@
                 stepCell.textContent = mark.step;
                 row.appendChild(stepCell);
 
+                const pathCell = document.createElement('td');
+                pathCell.textContent = mark.path ? mark.path.join(" → ") : "";
+                row.appendChild(pathCell);
+
                 placeNames.forEach(place => {
                     const td = document.createElement('td');
                     td.textContent = mark[place];
@@ -542,6 +541,28 @@
             table.appendChild(tbody);
             container.appendChild(table);
         }
+
+
+        function exploreMarkings(graph, visited, markings, path = [], step = 0) {
+            const snapshot = snapshotGraphStatesString(graph);
+            if (visited.has(snapshot)) return;
+
+            visited.add(snapshot);
+
+            let marking = { step, path: [...path] };
+            Object.keys(graph.states).forEach(p => {
+                marking[p] = graph.states[p].Token;
+            });
+            markings.push(marking);
+
+            Object.keys(graph.transitions).forEach(t => {
+                let cloned = JSON.parse(JSON.stringify(graph));
+                if (tryFireTransition(cloned, t)) {
+                    exploreMarkings(cloned, visited, markings, [...path, t], step + 1);
+                }
+            });
+        }
+
 
 
 
