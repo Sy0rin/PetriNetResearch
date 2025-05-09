@@ -336,16 +336,23 @@
             let clonedGraph = JSON.parse(JSON.stringify(graph));
             let flag = 1;
 
-            let characterSheet = document.querySelector('#exampleModal ul');
-            while(flag){
+            const characterSheet = document.querySelector('#exampleModal ul');
+            characterSheet.innerHTML = ''; // Clear existing <ul>
 
+            const markings = []; // Store each marking snapshot
+            let step = 0;
+
+            while (flag) {
+                const marking = { step: step++ };
                 Object.keys(clonedGraph.states).forEach(place => {
                     const tokenCount = clonedGraph.states[place].Token;
+                    marking[place] = tokenCount;
 
                     let li = document.createElement('li');
                     li.textContent = `Place ${place} → Tokens: ${tokenCount}`;
                     characterSheet.appendChild(li);
                 });
+
                 Object.keys(clonedGraph.transitions).forEach(transition => {
                     const data = clonedGraph.transitions[transition];
                     const inputs = data.Prev;
@@ -357,10 +364,15 @@
                     li.textContent = `Transition ${transition} → Inputs: ${inputs.join(", ")} | Outputs: ${outputs.join(", ")} | Can Fire: ${canFire ? "YES" : "NO"}`;
                     characterSheet.appendChild(li);
                 });
-                if (!fireTransitions(clonedGraph)){
+
+                markings.push(marking);
+
+                if (!fireTransitions(clonedGraph)) {
                     flag = 0;
                 }
             }
+
+            // Create the marking table using the collected snapshots
             createMarkingTable(markings);
         }
 
