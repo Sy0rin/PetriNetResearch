@@ -68,6 +68,7 @@
             updateCytoscape();
         }
 
+        $('#reachability').hide();
         function addPerson(){
             console.log("hello");
         }
@@ -360,6 +361,7 @@
                     flag = 0;
                 }
             }
+            createMarkingTable(markings);
         }
 
         let cy2; // Separate Cytoscape instance for Reachability Graph
@@ -473,6 +475,60 @@
             let clonedGraph = JSON.parse(JSON.stringify(graph));
             let reachGraph = buildReachabilityGraphFull(clonedGraph);
             drawReachabilityGraph(reachGraph);
+            $('#reachability').show();
+        }
+
+        function createMarkingTable(markings) {
+            const container = document.querySelector('#exampleModal ul');
+
+            // Remove old table if any
+            const oldTable = container.querySelector('table');
+            if (oldTable) oldTable.remove();
+
+            const table = document.createElement('table');
+            table.style.borderCollapse = 'collapse';
+            table.style.marginTop = '20px';
+            table.border = '1';
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            const stepHeader = document.createElement('th');
+            stepHeader.textContent = 'Step';
+            headerRow.appendChild(stepHeader);
+
+            // Get all unique place names from the first marking
+            const placeNames = Object.keys(markings[0]).filter(key => key !== 'step');
+
+            placeNames.forEach(place => {
+                const th = document.createElement('th');
+                th.textContent = `Place ${place}`;
+                headerRow.appendChild(th);
+            });
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            markings.forEach(mark => {
+                const row = document.createElement('tr');
+
+                const stepCell = document.createElement('td');
+                stepCell.textContent = mark.step;
+                row.appendChild(stepCell);
+
+                placeNames.forEach(place => {
+                    const td = document.createElement('td');
+                    td.textContent = mark[place];
+                    row.appendChild(td);
+                });
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            container.appendChild(table);
         }
 
 
