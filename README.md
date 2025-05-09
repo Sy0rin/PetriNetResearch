@@ -1,6 +1,3 @@
-Absolutely — here's a clean, professional **README.md** you can use for your project. It explains the project, the Petri Net syntax, and how to use the tool.
-
----
 
 ## 🧠 Petri Net Syntax Translator & Simulator
 
